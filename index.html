@@ -101,7 +101,10 @@
       <h2 id="detail-title"></h2>
       <p class="detail-date" id="detail-date"></p>
       <p class="detail-description" id="detail-description"></p>
-      <button class="danger-btn hidden" id="btn-delete-memory">Excluir lembrança</button>
+      <div class="detail-actions">
+        <button class="ghost-btn" id="btn-edit-memory">✏️ Editar</button>
+        <button class="danger-btn" id="btn-delete-memory">Excluir lembrança</button>
+      </div>
     </div>
   </div>
 </div>
@@ -110,11 +113,13 @@
 <div class="modal-overlay hidden" id="modal-add">
   <div class="modal add-modal">
     <button class="modal-close" data-close="modal-add">×</button>
-    <h2>Nova lembrança 💗</h2>
+    <h2 id="add-form-heading">Nova lembrança 💗</h2>
     <form id="form-add">
+      <input type="hidden" id="input-memory-id">
       <label>Foto ou vídeo
-        <input type="file" id="input-media" accept="image/*,video/*" required>
+        <input type="file" id="input-media" accept="image/*,video/*">
       </label>
+      <p class="hint hidden" id="hint-keep-media">Deixe em branco para manter a foto/vídeo atual.</p>
       <div class="file-preview hidden" id="file-preview"></div>
 
       <label>Título
@@ -149,7 +154,7 @@
         </div>
       </label>
 
-      <button type="submit" class="primary-btn wide">Guardar lembrança</button>
+      <button type="submit" class="primary-btn wide" id="btn-submit-memory">Guardar lembrança</button>
     </form>
   </div>
 </div>
