@@ -97,7 +97,7 @@
     <button class="modal-close" data-close="modal-detail">×</button>
     <div class="detail-media" id="detail-media"></div>
     <div class="detail-info">
-      <span class="tag" id="detail-collection"></span>
+      <div class="detail-tags" id="detail-tags"></div>
       <h2 id="detail-title"></h2>
       <p class="detail-date" id="detail-date"></p>
       <p class="detail-description" id="detail-description"></p>
@@ -130,15 +130,15 @@
         <label>Data
           <input type="date" id="input-date" required>
         </label>
-        <label>Coleção
-          <select id="input-collection-select">
-            <option value="__new__">+ Criar nova coleção</option>
-          </select>
-        </label>
       </div>
-      <label class="hidden" id="wrap-new-collection">Nome da nova coleção
-        <input type="text" id="input-collection-new" placeholder="Ex: Aventuras">
+      <label>Coleções
+        <div class="collection-picker" id="collection-picker"></div>
       </label>
+      <div class="collection-add">
+        <input type="text" id="input-collection-new" placeholder="Criar uma coleção nova">
+        <button type="button" class="ghost-btn" id="btn-add-collection">+ Adicionar</button>
+      </div>
+      <p class="hint">Escolha uma ou mais coleções para esta lembrança.</p>
 
       <label>Descrição
         <textarea id="input-description" rows="4" placeholder="O que você quer guardar sobre esse dia?" required></textarea>
