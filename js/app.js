@@ -27,8 +27,33 @@ function loadCustomMemories() {
 function saveCustomMemories(list) {
   localStorage.setItem("album_custom_memories", JSON.stringify(list));
 }
+function loadOverrides() {
+  try {
+    return JSON.parse(localStorage.getItem("album_overrides") || "{}");
+  } catch (e) {
+    return {};
+  }
+}
+function saveOverrides(overrides) {
+  localStorage.setItem("album_overrides", JSON.stringify(overrides));
+}
+function loadDeletedIds() {
+  try {
+    return JSON.parse(localStorage.getItem("album_deleted_ids") || "[]");
+  } catch (e) {
+    return [];
+  }
+}
+function saveDeletedIds(ids) {
+  localStorage.setItem("album_deleted_ids", JSON.stringify(ids));
+}
 function getAllMemories() {
-  return [...DEFAULT_MEMORIES, ...loadCustomMemories()];
+  const overrides = loadOverrides();
+  const deleted = new Set(loadDeletedIds());
+  const builtin = DEFAULT_MEMORIES
+    .filter(m => !deleted.has(m.id))
+    .map(m => overrides[m.id] ? { ...m, ...overrides[m.id] } : m);
+  return [...builtin, ...loadCustomMemories()];
 }
 
 /* ===================== INIT ===================== */
@@ -387,7 +412,7 @@ function initModals() {
       if (e.target === overlay) closeModal(overlay.id);
     });
   });
-  document.getElementById("btn-add").addEventListener("click", () => openModal("modal-add"));
+  document.getElementById("btn-add").addEventListener("click", () => { resetAddForm(); openModal("modal-add"); });
 }
 function openModal(id) { document.getElementById(id).classList.remove("hidden"); }
 function closeModal(id) { document.getElementById(id).classList.add("hidden"); }
@@ -402,20 +427,73 @@ function openDetail(m) {
   document.getElementById("detail-title").textContent = m.title;
   document.getElementById("detail-date").textContent = formatDate(m.date);
   document.getElementById("detail-description").textContent = m.description;
-  document.getElementById("btn-delete-memory").classList.toggle("hidden", !!m.builtin);
   openModal("modal-detail");
 }
 
 document.addEventListener("click", (e) => {
   if (e.target && e.target.id === "btn-delete-memory" && currentDetailMemory) {
-    const custom = loadCustomMemories().filter(m => m.id !== currentDetailMemory.id);
-    saveCustomMemories(custom);
-    memories = getAllMemories();
+    deleteMemory(currentDetailMemory.id);
     closeModal("modal-detail");
     renderCollectionFilterOptions();
     renderAll();
   }
+  if (e.target && e.target.id === "btn-edit-memory" && currentDetailMemory) {
+    closeModal("modal-detail");
+    openEditForm(currentDetailMemory);
+  }
 });
+
+function deleteMemory(id) {
+  if (String(id).startsWith("custom-")) {
+    saveCustomMemories(loadCustomMemories().filter(m => m.id !== id));
+  } else {
+    const deleted = loadDeletedIds();
+    if (!deleted.includes(id)) deleted.push(id);
+    saveDeletedIds(deleted);
+  }
+  memories = getAllMemories();
+}
+
+function openEditForm(m) {
+  resetAddForm();
+  document.getElementById("add-form-heading").textContent = "Editar lembrança 💗";
+  document.getElementById("btn-submit-memory").textContent = "Salvar alterações";
+  document.getElementById("input-memory-id").value = m.id;
+  document.getElementById("input-title").value = m.title;
+  document.getElementById("input-date").value = m.date;
+  document.getElementById("input-description").value = m.description;
+
+  const select = document.getElementById("input-collection-select");
+  if ([...select.options].some(o => o.value === m.collection)) {
+    select.value = m.collection;
+  } else {
+    select.value = "__new__";
+  }
+  document.getElementById("wrap-new-collection").classList.toggle("hidden", select.value !== "__new__");
+
+  document.querySelectorAll(".frame-option").forEach(b => b.classList.toggle("selected", b.dataset.frame === m.frame));
+  selectedFrame = m.frame;
+
+  document.getElementById("hint-keep-media").classList.remove("hidden");
+  const preview = document.getElementById("file-preview");
+  preview.classList.remove("hidden");
+  preview.innerHTML = m.type === "video" ? `<video src="${m.media}" controls></video>` : `<img src="${m.media}">`;
+
+  openModal("modal-add");
+}
+
+function resetAddForm() {
+  document.getElementById("form-add").reset();
+  document.getElementById("input-memory-id").value = "";
+  document.getElementById("add-form-heading").textContent = "Nova lembrança 💗";
+  document.getElementById("btn-submit-memory").textContent = "Guardar lembrança";
+  document.getElementById("hint-keep-media").classList.add("hidden");
+  document.getElementById("file-preview").classList.add("hidden");
+  document.getElementById("wrap-new-collection").classList.remove("hidden");
+  document.querySelectorAll(".frame-option").forEach(b => b.classList.remove("selected"));
+  document.querySelector(".frame-option").classList.add("selected");
+  selectedFrame = "frame-polaroid";
+}
 
 /* ===================== FORMULÁRIO NOVA LEMBRANÇA ===================== */
 function initAddForm() {
@@ -448,39 +526,61 @@ function initAddForm() {
   document.getElementById("form-add").addEventListener("submit", (e) => {
     e.preventDefault();
     const file = document.getElementById("input-media").files[0];
-    if (!file) return;
+    const editingId = document.getElementById("input-memory-id").value;
+    if (!file && !editingId) return;
 
     const select = document.getElementById("input-collection-select");
     const collection = select.value === "__new__"
       ? (document.getElementById("input-collection-new").value.trim() || "Sem coleção")
       : select.value;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const newMemory = {
-        id: "custom-" + Date.now(),
-        title: document.getElementById("input-title").value.trim(),
-        collection,
-        description: document.getElementById("input-description").value.trim(),
-        date: document.getElementById("input-date").value,
-        media: reader.result,
-        type: file.type.startsWith("video") ? "video" : "image",
-        frame: selectedFrame,
-        builtin: false
-      };
-      const custom = loadCustomMemories();
-      custom.push(newMemory);
-      saveCustomMemories(custom);
-      memories = getAllMemories();
+    const fields = {
+      title: document.getElementById("input-title").value.trim(),
+      collection,
+      description: document.getElementById("input-description").value.trim(),
+      date: document.getElementById("input-date").value,
+      frame: selectedFrame
+    };
 
-      e.target.reset();
-      document.getElementById("file-preview").classList.add("hidden");
+    const finish = () => {
+      saveMemory(editingId, fields);
+      resetAddForm();
       closeModal("modal-add");
       renderCollectionFilterOptions();
       renderAll();
     };
-    reader.readAsDataURL(file);
+
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        fields.media = reader.result;
+        fields.type = file.type.startsWith("video") ? "video" : "image";
+        finish();
+      };
+      reader.readAsDataURL(file);
+    } else {
+      finish();
+    }
   });
+}
+
+function saveMemory(editingId, fields) {
+  if (!editingId) {
+    const newMemory = { id: "custom-" + Date.now(), builtin: false, ...fields };
+    const custom = loadCustomMemories();
+    custom.push(newMemory);
+    saveCustomMemories(custom);
+  } else if (String(editingId).startsWith("custom-")) {
+    const custom = loadCustomMemories();
+    const idx = custom.findIndex(m => m.id === editingId);
+    if (idx !== -1) custom[idx] = { ...custom[idx], ...fields };
+    saveCustomMemories(custom);
+  } else {
+    const overrides = loadOverrides();
+    overrides[editingId] = { ...(overrides[editingId] || {}), ...fields };
+    saveOverrides(overrides);
+  }
+  memories = getAllMemories();
 }
 
 /* ===================== HELPERS ===================== */
