@@ -10,7 +10,7 @@ function makeMemory(id, title, collection, description, date, media, type) {
   return {
     id: String(id),
     title,
-    collection,
+    collections: [collection],
     description,
     date,
     media: `albuns/${media}`,
