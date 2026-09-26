@@ -47,13 +47,17 @@ function loadDeletedIds() {
 function saveDeletedIds(ids) {
   localStorage.setItem("album_deleted_ids", JSON.stringify(ids));
 }
+function normalizeMemory(m) {
+  if (!m.collections) return { ...m, collections: m.collection ? [m.collection] : ["Sem coleção"] };
+  return m;
+}
 function getAllMemories() {
   const overrides = loadOverrides();
   const deleted = new Set(loadDeletedIds());
   const builtin = DEFAULT_MEMORIES
     .filter(m => !deleted.has(m.id))
     .map(m => overrides[m.id] ? { ...m, ...overrides[m.id] } : m);
-  return [...builtin, ...loadCustomMemories()];
+  return [...builtin, ...loadCustomMemories()].map(normalizeMemory);
 }
 
 /* ===================== INIT ===================== */
@@ -147,15 +151,28 @@ function initToolbar() {
 }
 
 function renderCollectionFilterOptions() {
-  const collections = [...new Set(memories.map(m => m.collection))];
+  const collections = [...new Set(memories.flatMap(m => m.collections))];
   const select = document.getElementById("filter-collection");
-  const inputSelect = document.getElementById("input-collection-select");
   select.innerHTML = `<option value="">Todas as coleções</option>`;
-  inputSelect.innerHTML = `<option value="__new__">+ Criar nova coleção</option>`;
   collections.forEach(c => {
     select.innerHTML += `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`;
-    inputSelect.innerHTML += `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`;
   });
+}
+
+function getAllCollectionNames() {
+  return [...new Set(memories.flatMap(m => m.collections))];
+}
+
+function renderCollectionPicker(selected = []) {
+  const picker = document.getElementById("collection-picker");
+  const names = getAllCollectionNames();
+  selected.forEach(name => { if (!names.includes(name)) names.push(name); });
+  picker.innerHTML = names.map(name => `
+    <label class="collection-option">
+      <input type="checkbox" value="${escapeHtml(name)}" ${selected.includes(name) ? "checked" : ""}>
+      ${escapeHtml(name)}
+    </label>
+  `).join("");
 }
 
 /* ===================== ALTERNAR GRADE / FEED ===================== */
@@ -198,7 +215,7 @@ function initViewToggles() {
       const isAlbum = btn.dataset.view === "album";
       document.getElementById("collection-grid").classList.toggle("hidden", isAlbum);
       document.getElementById("collection-flipbook").classList.toggle("hidden", !isAlbum);
-      if (isAlbum) renderFlipbook("collection", sortedByDate(memories.filter(m => m.collection === activeCollectionName), "asc"));
+      if (isAlbum) renderFlipbook("collection", sortedByDate(memories.filter(m => m.collections.includes(activeCollectionName)), "asc"));
     });
   });
 
@@ -225,7 +242,7 @@ function renderGridAll() {
   const search = document.getElementById("search-input").value.trim().toLowerCase();
   let list = sortedByDate(memories, currentSort);
 
-  if (currentCollectionFilter) list = list.filter(m => m.collection === currentCollectionFilter);
+  if (currentCollectionFilter) list = list.filter(m => m.collections.includes(currentCollectionFilter));
   if (search) list = list.filter(m => m.title.toLowerCase().includes(search) || m.description.toLowerCase().includes(search));
 
   grid.innerHTML = "";
@@ -241,7 +258,7 @@ function buildMemoryCard(m) {
     <div class="card-body">
       <div class="card-title">${escapeHtml(m.title)}</div>
       <div class="card-date">${formatDate(m.date)}</div>
-      <div class="card-tag">${escapeHtml(m.collection)}</div>
+      <div class="card-tags">${m.collections.map(c => `<span class="card-tag">${escapeHtml(c)}</span>`).join("")}</div>
     </div>
   `;
   card.addEventListener("click", () => openDetail(m));
@@ -275,7 +292,7 @@ function renderTimeline() {
       ${m.type === "video" ? `<video class="thumb" src="${m.media}" muted></video>` : `<img class="thumb" src="${m.media}" alt="${escapeHtml(m.title)}">`}
       <div class="info">
         <h4>${escapeHtml(m.title)}</h4>
-        <p>${formatDate(m.date)} · ${escapeHtml(m.collection)}</p>
+        <p>${formatDate(m.date)} · ${escapeHtml(m.collections.join(", "))}</p>
         <p class="desc-preview">${escapeHtml(truncate(m.description, 110))}</p>
       </div>
     `;
@@ -288,9 +305,9 @@ function renderTimeline() {
 function renderCollectionsGrid() {
   const grid = document.getElementById("collections-grid");
   grid.innerHTML = "";
-  const collections = [...new Set(memories.map(m => m.collection))];
+  const collections = [...new Set(memories.flatMap(m => m.collections))];
   collections.forEach(name => {
-    const items = memories.filter(m => m.collection === name);
+    const items = memories.filter(m => m.collections.includes(name));
     const cover = items.find(m => m.type === "image") || items[0];
     const card = document.createElement("div");
     card.className = "collection-card";
@@ -320,7 +337,7 @@ function openCollection(name) {
 
   const grid = document.getElementById("collection-grid");
   grid.innerHTML = "";
-  sortedByDate(memories.filter(m => m.collection === name), currentSort).forEach(m => grid.appendChild(buildMemoryCard(m)));
+  sortedByDate(memories.filter(m => m.collections.includes(name)), currentSort).forEach(m => grid.appendChild(buildMemoryCard(m)));
 }
 
 /* ===================== FLIPBOOK (álbum de páginas) ===================== */
@@ -365,7 +382,7 @@ function paintFlipPage(key) {
   const m = items[index];
   page.innerHTML = `
     <div class="page-media framed-media ${m.frame}"><div class="media-box">${mediaTag2(m)}</div></div>
-    <span class="page-tag">${escapeHtml(m.collection)}</span>
+    <div class="page-tags">${m.collections.map(c => `<span class="page-tag">${escapeHtml(c)}</span>`).join("")}</div>
     <h3>${escapeHtml(m.title)}</h3>
     <p class="page-date">${formatDate(m.date)}</p>
     <p class="page-text">${escapeHtml(m.description)}</p>
@@ -423,7 +440,7 @@ function openDetail(m) {
   document.getElementById("detail-media").innerHTML = m.type === "video"
     ? `<video src="${m.media}" controls autoplay></video>`
     : `<img src="${m.media}" alt="${escapeHtml(m.title)}">`;
-  document.getElementById("detail-collection").textContent = m.collection;
+  document.getElementById("detail-tags").innerHTML = m.collections.map(c => `<span class="tag">${escapeHtml(c)}</span>`).join("");
   document.getElementById("detail-title").textContent = m.title;
   document.getElementById("detail-date").textContent = formatDate(m.date);
   document.getElementById("detail-description").textContent = m.description;
@@ -462,14 +479,7 @@ function openEditForm(m) {
   document.getElementById("input-title").value = m.title;
   document.getElementById("input-date").value = m.date;
   document.getElementById("input-description").value = m.description;
-
-  const select = document.getElementById("input-collection-select");
-  if ([...select.options].some(o => o.value === m.collection)) {
-    select.value = m.collection;
-  } else {
-    select.value = "__new__";
-  }
-  document.getElementById("wrap-new-collection").classList.toggle("hidden", select.value !== "__new__");
+  renderCollectionPicker(m.collections);
 
   document.querySelectorAll(".frame-option").forEach(b => b.classList.toggle("selected", b.dataset.frame === m.frame));
   selectedFrame = m.frame;
@@ -489,7 +499,8 @@ function resetAddForm() {
   document.getElementById("btn-submit-memory").textContent = "Guardar lembrança";
   document.getElementById("hint-keep-media").classList.add("hidden");
   document.getElementById("file-preview").classList.add("hidden");
-  document.getElementById("wrap-new-collection").classList.remove("hidden");
+  document.getElementById("input-collection-new").value = "";
+  renderCollectionPicker([]);
   document.querySelectorAll(".frame-option").forEach(b => b.classList.remove("selected"));
   document.querySelector(".frame-option").classList.add("selected");
   selectedFrame = "frame-polaroid";
@@ -507,10 +518,23 @@ function initAddForm() {
   });
   frameOptions[0].classList.add("selected");
 
-  document.getElementById("input-collection-select").addEventListener("change", (e) => {
-    document.getElementById("wrap-new-collection").classList.toggle("hidden", e.target.value !== "__new__");
+  document.getElementById("btn-add-collection").addEventListener("click", () => {
+    const input = document.getElementById("input-collection-new");
+    const name = input.value.trim();
+    if (!name) return;
+    const picker = document.getElementById("collection-picker");
+    const existing = [...picker.querySelectorAll("input[type=checkbox]")]
+      .find(cb => cb.value.toLowerCase() === name.toLowerCase());
+    if (existing) {
+      existing.checked = true;
+    } else {
+      const label = document.createElement("label");
+      label.className = "collection-option";
+      label.innerHTML = `<input type="checkbox" value="${escapeHtml(name)}" checked> ${escapeHtml(name)}`;
+      picker.appendChild(label);
+    }
+    input.value = "";
   });
-  document.getElementById("wrap-new-collection").classList.remove("hidden");
 
   document.getElementById("input-media").addEventListener("change", (e) => {
     const file = e.target.files[0];
@@ -529,14 +553,12 @@ function initAddForm() {
     const editingId = document.getElementById("input-memory-id").value;
     if (!file && !editingId) return;
 
-    const select = document.getElementById("input-collection-select");
-    const collection = select.value === "__new__"
-      ? (document.getElementById("input-collection-new").value.trim() || "Sem coleção")
-      : select.value;
+    const selectedCollections = [...document.querySelectorAll("#collection-picker input:checked")].map(cb => cb.value);
+    const collections = selectedCollections.length ? selectedCollections : ["Sem coleção"];
 
     const fields = {
       title: document.getElementById("input-title").value.trim(),
-      collection,
+      collections,
       description: document.getElementById("input-description").value.trim(),
       date: document.getElementById("input-date").value,
       frame: selectedFrame
