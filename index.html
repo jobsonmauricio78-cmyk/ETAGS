@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nosso Álbum ✨</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,600&family=Dancing+Script:wght@500;700&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-theme="romance">
+
+<div class="petals" id="petals"></div>
+
+<header class="site-header">
+  <div class="brand">
+    <span class="brand-icon">💌</span>
+    <div>
+      <h1>Nosso Álbum</h1>
+      <p class="brand-sub">um cantinho só nosso, cheio de lembranças</p>
+    </div>
+  </div>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab-btn active" data-tab="todas">Todas as lembranças</button>
+    <button class="tab-btn" data-tab="linha">Linha do tempo</button>
+    <button class="tab-btn" data-tab="colecoes">Coleções</button>
+  </nav>
+
+  <div class="header-actions">
+    <button class="icon-btn" id="btn-theme" title="Escolher tema">🎨</button>
+    <button class="primary-btn" id="btn-add">+ Nova lembrança</button>
+  </div>
+</header>
+
+<main>
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-text">
+      <p class="hero-eyebrow">um lugar para voltar</p>
+      <h2 class="hero-title">Nossas melhores partes,<br>guardadas aqui.</h2>
+      <p class="hero-copy">Cada foto tem um pedacinho da nossa história.</p>
+    </div>
+    <div class="hero-polaroids" id="hero-polaroids"></div>
+  </section>
+
+  <!-- TODAS AS LEMBRANÇAS -->
+  <section class="tab-panel active" id="tab-todas">
+    <div class="toolbar">
+      <input type="search" id="search-input" placeholder="Buscar por título ou descrição...">
+      <select id="filter-collection">
+        <option value="">Todas as coleções</option>
+      </select>
+      <button class="ghost-btn" id="btn-sort">Mais recentes primeiro ↓</button>
+      <div class="layout-toggle" id="layout-toggle">
+        <button class="toggle-btn active" data-layout="grid">🖼️ Grade</button>
+        <button class="toggle-btn" data-layout="feed">📱 Feed</button>
+      </div>
+    </div>
+    <div class="grid-memories" id="grid-all"></div>
+    <p class="empty-state hidden" id="empty-all">Nenhuma lembrança encontrada por aqui 🌸</p>
+  </section>
+
+  <!-- LINHA DO TEMPO -->
+  <section class="tab-panel" id="tab-linha">
+    <div class="view-toggle">
+      <button class="toggle-btn active" data-view="lista">📜 Linha do tempo</button>
+      <button class="toggle-btn" data-view="album">📖 Álbum de páginas</button>
+    </div>
+    <div id="timeline-list" class="timeline"></div>
+    <div id="timeline-flipbook" class="flipbook-wrap hidden"></div>
+  </section>
+
+  <!-- COLEÇÕES -->
+  <section class="tab-panel" id="tab-colecoes">
+    <div id="collections-grid" class="collections-grid"></div>
+
+    <div id="collection-detail" class="collection-detail hidden">
+      <button class="ghost-btn" id="btn-back-collections">← Voltar para coleções</button>
+      <h2 id="collection-title"></h2>
+      <div class="view-toggle">
+        <button class="toggle-btn active" data-view="grid">🖼️ Galeria</button>
+        <button class="toggle-btn" data-view="album">📖 Álbum de páginas</button>
+      </div>
+      <div id="collection-grid" class="grid-memories"></div>
+      <div id="collection-flipbook" class="flipbook-wrap hidden"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">O melhor lugar do mundo é qualquer lugar com você.</footer>
+
+<!-- MODAL: DETALHE DA LEMBRANÇA -->
+<div class="modal-overlay hidden" id="modal-detail">
+  <div class="modal detail-modal">
+    <button class="modal-close" data-close="modal-detail">×</button>
+    <div class="detail-media" id="detail-media"></div>
+    <div class="detail-info">
+      <span class="tag" id="detail-collection"></span>
+      <h2 id="detail-title"></h2>
+      <p class="detail-date" id="detail-date"></p>
+      <p class="detail-description" id="detail-description"></p>
+      <button class="danger-btn hidden" id="btn-delete-memory">Excluir lembrança</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NOVA LEMBRANÇA -->
+<div class="modal-overlay hidden" id="modal-add">
+  <div class="modal add-modal">
+    <button class="modal-close" data-close="modal-add">×</button>
+    <h2>Nova lembrança 💗</h2>
+    <form id="form-add">
+      <label>Foto ou vídeo
+        <input type="file" id="input-media" accept="image/*,video/*" required>
+      </label>
+      <div class="file-preview hidden" id="file-preview"></div>
+
+      <label>Título
+        <input type="text" id="input-title" placeholder="Ex: Nosso passeio no parque" required>
+      </label>
+
+      <div class="form-row">
+        <label>Data
+          <input type="date" id="input-date" required>
+        </label>
+        <label>Coleção
+          <select id="input-collection-select">
+            <option value="__new__">+ Criar nova coleção</option>
+          </select>
+        </label>
+      </div>
+      <label class="hidden" id="wrap-new-collection">Nome da nova coleção
+        <input type="text" id="input-collection-new" placeholder="Ex: Aventuras">
+      </label>
+
+      <label>Descrição
+        <textarea id="input-description" rows="4" placeholder="O que você quer guardar sobre esse dia?" required></textarea>
+      </label>
+
+      <label>Moldura da foto
+        <div class="frame-options" id="frame-options">
+          <button type="button" class="frame-option" data-frame="frame-polaroid">Polaroid</button>
+          <button type="button" class="frame-option" data-frame="frame-gold">Dourada</button>
+          <button type="button" class="frame-option" data-frame="frame-vintage">Vintage</button>
+          <button type="button" class="frame-option" data-frame="frame-film">Filme</button>
+          <button type="button" class="frame-option" data-frame="frame-none">Sem moldura</button>
+        </div>
+      </label>
+
+      <button type="submit" class="primary-btn wide">Guardar lembrança</button>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: TEMAS -->
+<div class="modal-overlay hidden" id="modal-theme">
+  <div class="modal theme-modal">
+    <button class="modal-close" data-close="modal-theme">×</button>
+    <h2>Escolha o clima do site</h2>
+    <div class="theme-grid" id="theme-grid"></div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
